@@ -17,17 +17,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Unzip source
+      - name: Clone Vita3K source with submodules
+        run: |
+          git clone --recursive https://github.com/Vita3K/Vita3K-Android vita3k-src
+          cd vita3k-src
+          git submodule update --init --recursive
+
+      - name: Apply redesign files from zip
         run: |
           unzip Vita3K-Android-12-redesigned.zip
-          mv Vita3K-Android-12/* .
-          mv Vita3K-Android-12/.github .github-src || true
-          mv Vita3K-Android-12/.gitmodules . || true
-          rm -rf Vita3K-Android-12
 
-      - name: Init submodules
-        run: |
-          git submodule update --init --recursive
+          # Android XML + manifest
+          cp Vita3K-Android-12/android/src/main/res/values/colors.xml \
+             vita3k-src/android/src/main/res/values/colors.xml
+          cp Vita3K-Android-12/android/src/main/res/values/styles.xml \
+             vita3k-src/android/src/main/res/values/styles.xml
+          cp Vita3K-Android-12/android/src/main/AndroidManifest.xml \
+             vita3k-src/android/src/main/AndroidManifest.xml
+
+          # ImGui / C++ sources
+          cp Vita3K-Android-12/vita3k/gui/src/gui.cpp \
+             vita3k-src/vita3k/gui/src/gui.cpp
+          cp Vita3K-Android-12/vita3k/gui/src/home_screen.cpp \
+             vita3k-src/vita3k/gui/src/home_screen.cpp
+          cp Vita3K-Android-12/vita3k/gui/src/app_context_menu.cpp \
+             vita3k-src/vita3k/gui/src/app_context_menu.cpp
+          cp Vita3K-Android-12/vita3k/gui/src/information_bar.cpp \
+             vita3k-src/vita3k/gui/src/information_bar.cpp
+          cp Vita3K-Android-12/vita3k/compat/include/compat/state.h \
+             vita3k-src/vita3k/compat/include/compat/state.h
 
       - uses: hendrikmuhs/ccache-action@v1.2
 
@@ -49,6 +67,7 @@ jobs:
       - name: Set up build environment
         run: |
           sudo apt-get install -y ninja-build
+          cd vita3k-src
           vcpkg install \
             boost-system:arm64-android \
             boost-filesystem:arm64-android \
@@ -60,16 +79,18 @@ jobs:
 
       - name: Copy assets
         run: |
+          cd vita3k-src
           cp -r data android/assets
           cp -r lang android/assets
           cp -r vita3k/shaders-builtin android/assets
 
       - name: Build debug APK
         run: |
+          cd vita3k-src
           ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: vita3k-debug.apk
-          path: android/build/outputs/apk/debug/android-debug.apk
+          path: vita3k-src/android/build/outputs/apk/debug/android-debug.apk
