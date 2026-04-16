@@ -16,7 +16,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
+
+      - name: Unzip source
+        run: |
+          unzip Vita3K-Android-12-redesigned.zip
+          mv Vita3K-Android-12/* .
+          mv Vita3K-Android-12/.github .github-src || true
+          mv Vita3K-Android-12/.gitmodules . || true
+          rm -rf Vita3K-Android-12
+
+      - name: Init submodules
+        run: |
+          git submodule update --init --recursive
 
       - uses: hendrikmuhs/ccache-action@v1.2
 
@@ -47,11 +58,14 @@ jobs:
             openssl:arm64-android \
             zlib:arm64-android
 
-      - name: Build debug APK
+      - name: Copy assets
         run: |
           cp -r data android/assets
           cp -r lang android/assets
           cp -r vita3k/shaders-builtin android/assets
+
+      - name: Build debug APK
+        run: |
           ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
